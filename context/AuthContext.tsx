@@ -1,6 +1,8 @@
 import { useRouter } from "expo-router";
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { loginRequest } from "@/services/authService";
+import { useUser } from "./UserContext";
 
 type AuthContextType = {
     user: string | null;
@@ -16,8 +18,9 @@ const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const router = useRouter();
     const [user, setUser] = useState<string | null>(null);
-    const [loading, setLoading] = useState<boolean>(true); // inicia cargando
+    const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
+    const { refreshMetrics } = useUser();
 
     useEffect(() => {
         _checkSession();
@@ -25,11 +28,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const login = async (email: string, password: string) => {
         setError(null);
-        if (email === "Elias" && password === "123") {
-            setUser(email);
-            await AsyncStorage.setItem('user', email);
-        } else {
-            setError("Correo o contraseña incorrectos.");
+        setLoading(true);
+        try {
+            const data = await loginRequest(email, password);
+            const { user } = data;
+            await AsyncStorage.setItem('user', JSON.stringify(user));
+            await AsyncStorage.setItem('username', user.username);
+            setUser(user.username);
+
+            const metrics = JSON.stringify({
+                height: user.height,
+                weight: user.weight,
+                age: user.age,
+                gender: user.gender
+            })
+            await AsyncStorage.setItem("metrics", metrics);
+            await refreshMetrics();
+
+            router.push("/(tabs)/home");
+        } catch (err: any) {
+            setError(err.message || 'Error al iniciar sesión');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -44,7 +64,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const _checkSession = async () => {
         try {
-            const storedUser = await AsyncStorage.getItem('user');
+            const storedUser = await AsyncStorage.getItem('username');
             if (storedUser) {
                 setUser(storedUser);
             }

@@ -1,34 +1,42 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ReactNode, useState, useContext, createContext, useEffect } from "react";
 import { validateMetrics } from "@/utils/validateMetrics";
+import { Metrics } from "@/types/Metrics";
 
 type UserContextType = {
     hasMetrics: boolean;
     undefinedMetric: string | null;
-    userMetrics: object;
+    userMetrics: Metrics;
     updateMetrics: (newMetrics: string) => Promise<boolean>;
     clearUndefinedMetric: () => void;
+    refreshMetrics: () => Promise<void>;
 }
+
+const defaultMetrics: Metrics = {
+    weight: '',
+    height: '',
+    age: '',
+    gender: '',
+};
 
 export const UserContext = createContext<UserContextType>({} as UserContextType);
 
 export const UserProvider = ({ children }: { children: ReactNode }) => {
-    const [userMetrics, setUserMetrics] = useState<object>({});
+    const [userMetrics, setUserMetrics] = useState<Metrics>(defaultMetrics);
     const [hasMetrics, setHasMetrics] = useState<boolean>(false);
     const [undefinedMetric, setUndefinedMetric] = useState<string | null>(null);
 
     useEffect(() => {
         const verifyMetrics = async () => {
             try {
-                const userMetrics = await AsyncStorage.getItem("metrics");
-                setHasMetrics(!!userMetrics); // true si existe, false si no
-                setUserMetrics(userMetrics ? JSON.parse(userMetrics) : {});
+                const metricsString = await AsyncStorage.getItem("metrics");
+                const parsed: Metrics = metricsString ? JSON.parse(metricsString) : defaultMetrics;
+                setUserMetrics(parsed);
+                setHasMetrics(!!metricsString);
             } catch (error) {
-                setUndefinedMetric("Error verificando metricas en el almacenamiento");
-                setHasMetrics(false);
+                setUndefinedMetric("Error verificando métricas en el almacenamiento");
             }
         };
-
         verifyMetrics();
     }, []);
 
@@ -46,6 +54,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             }
 
             await AsyncStorage.setItem("metrics", newMetrics);
+            await refreshMetrics();
             setHasMetrics(true);
             clearUndefinedMetric();
             return true;
@@ -55,8 +64,19 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         }
     }
 
+    const refreshMetrics = async () => {
+        try {
+            const storedMetrics = await AsyncStorage.getItem("metrics");
+            const parsed: Metrics = storedMetrics ? JSON.parse(storedMetrics) : defaultMetrics;
+            setUserMetrics(parsed);
+            setHasMetrics(!!storedMetrics);
+        } catch (error) {
+            setUndefinedMetric("Error verificando métricas en el almacenamiento");
+        }
+    };
+
     return (
-        <UserContext.Provider value={{ hasMetrics, undefinedMetric, userMetrics, clearUndefinedMetric, updateMetrics }}>
+        <UserContext.Provider value={{ hasMetrics, undefinedMetric, userMetrics, clearUndefinedMetric, updateMetrics, refreshMetrics }}>
             {children}
         </UserContext.Provider>
     );

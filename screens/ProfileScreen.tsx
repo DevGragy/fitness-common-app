@@ -1,18 +1,13 @@
 import { Text, StyleSheet, View } from "react-native";
+import { router } from "expo-router";
 import { useUser } from "@/context/UserContext";
+import { Metrics } from "@/types/Metrics";
+import { useTheme } from "@/hooks/useTheme";
+
 import ScreenContainer from "@/components/ScreenContainer";
 import Title from "@/components/Title";
 import Card from "@/components/Card";
-import { useTheme } from "@/hooks/useTheme";
 import PrimaryButton from "@/components/PrimaryButton";
-import { router } from "expo-router";
-
-interface Metrics {
-    weight: string;
-    height: string;
-    age: string;
-    gender: string;
-}
 
 export default function ProfileScreen() {
     const { userMetrics } = useUser();
